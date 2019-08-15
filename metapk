@@ -151,8 +151,8 @@ printf "Metapk
 Version: 1.0.0
 Author:Dharmy
 Usage: metapk
-	-c, --create <lhost> <lport>    Creates A Payload With The specified lhost and lport
-	-e, --embed <original apk> <payload>    Decompiles the original apk and payload, embeds the payload, builds the original apk back and signs it
-	--clean    Cleans Up The Working Directory
+	-c, --create <lhost> <lport>                Creates A Payload With The specified lhost and lport
+	-e, --embed <original apk> <payload>        Decompiles the original apk and payload, embeds the payload, builds the original apk back and signs it
+	--clean                                     Cleans Up The Working Directory
 "
 fi
