@@ -107,14 +107,14 @@ else echo "> Could Not Find Smali File To Inject Hook, See $logfile For Details"
 }
 sign(){
 echo "+ Building Original Apk"
- ./tools/apktool b original/ >> $logfile 2>&1
+ ./bin/apktool b original/ >> $logfile 2>&1
 
 	if [ "$?" != "0" ]; then
 		excode=1
 		return 1
 	fi
 echo "+ Signing Original Apk"
-jarsigner -verbose -keystore ./tools/debug.keystore -storepass android -keypass android -digestalg SHA1 -sigalg MD5withRSA original/dist/*.apk androiddebugkey >>$logfile
+jarsigner -verbose -keystore ./bin/debug.keystore -storepass android -keypass android -digestalg SHA1 -sigalg MD5withRSA original/dist/*.apk androiddebugkey >>$logfile
 	if ! [ -d $(pwd)/output ]; then
 		mkdir $(pwd)/output
 	fi
@@ -128,10 +128,10 @@ cp_payload(){
 }
 decompile(){
 	echo "+ Decompiling Original Apk"
-	apktool d -f -o original $1 >> $logfile 2>&1
+	./bin/apktool d -f -o original $1 >> $logfile 2>&1
 	shift
 	echo "+ Decompiling Payload"
-	apktool d -f -o payload $1 >> $logfile 2>&1
+	./bin/apktool d -f -o payload $1 >> $logfile 2>&1
 	cp_payload
 }
 create(){
