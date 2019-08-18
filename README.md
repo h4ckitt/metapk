@@ -1,5 +1,5 @@
 # Metapk
-Merge Metasploit Payload And Legit Apk With Ease
+Merge Metasploit Payload And Legit Apk With Ease.
 
 ## Let's Dive In
 Clone The Repository To Your Machine
@@ -11,8 +11,8 @@ git clone
 ```
 
 ### Dependencies
-A Pc With Bash Shell ( Most Suitably Linux)
-A Chunk Of Processing Power From Your Brain
+*	A Pc With Bash Shell ( Most Suitably Linux)
+*	A Chunk Of Processing Power From Your Brain
 
 ## Usage
 To Create A Payload Only;
@@ -30,3 +30,4 @@ CleanUp The Present Working Directory;
 ```
 
 #### Note: For Best Results, Copy Original Apk And Payload Into Metapk Directory.
+##### Ps: There Shouldn't Be Spafce Between Apk Names. (Working On That).
