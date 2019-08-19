@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash
 excode=0
 if ! [ -d "$(pwd)/logs" ]; then
 	mkdir "$(pwd)/logs"
@@ -164,6 +164,7 @@ cp_payload(){
 
 decompile(){
 	echo "+ Decompiling Original Apk"
+	./bin/apktool empty-framework-dir --force >> $logfile 2>&1
 	./bin/apktool d -f -o original $1 >> $logfile 2>&1
 	shift
 	echo "+ Decompiling Payload"
