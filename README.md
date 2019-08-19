@@ -30,4 +30,5 @@ CleanUp The Present Working Directory;
 ```
 
 #### Note: For Best Results, Copy Original Apk And Payload Into Metapk Directory.
-##### Ps: There Shouldn't Be Spafce Between Apk Names. (Working On That).
+##### Ps: There Shouldn't Be Space Between Apk Names. (Working On That).
+######PPS:This Script Won't Work For All Apks
