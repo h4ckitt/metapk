@@ -1,5 +1,7 @@
 #!/bin/bash
 excode=0
+declare -i counter=1
+mode="auto"
 if ! [ -d "$(pwd)/logs" ]; then
 	mkdir "$(pwd)/logs"
 fi
@@ -7,7 +9,7 @@ logfile="./logs/metapk-`date +%s`.log"
 
 cleanup(){
 	echo "+ Cleaning Up"
-	for i in activity file smaliloc.tmp; do
+	for i in activity file smaliloc.tmp smalifiles; do
 		[ ! -f $i ] || rm $i
 	done
 	rm -rf original/
@@ -28,22 +30,22 @@ manifest(){
                 x=$((x+1))
         done < manifest
         rm manifest
-	embed	
+	embed
+	sign
 	if [ "$?" != "0" ]; then
-		if [ $hook -eq 1 ]; then
+		if [ "$hok" == "1" ]; then
 		embed hook
 		sign
 	fi
 	if [ "$?" != "0" ]; then
-		if ! [ -z "$(grep -w v0 $logfile)" ]; then
+		if ! [ -z "$(grep -w v15 $logfile)" ]; then
 		embed fallback
 		sign
 	fi
 	fi	
 fi
 error_handler
-sign
-error_handler
+
 
 }
 
@@ -69,6 +71,13 @@ browse_smali(){
         ext="nil"
     fi
         if [ "$ext" == "smali" ]; then
+        	if [ "$mode" == "auto" ]; then
+        		if [ "$fl" != "$i" ]; then
+        	echo $counter. $filename >> smalifiles
+        	counter+=1
+        	fl=$i
+        fi
+        fi
         	if [ -z $x ]; then	        		
 		exit 1
 	fi
@@ -120,9 +129,29 @@ embed(){
 			done
 fi
 	if [ -z "$x" ]; then
-		hook=1
+		hok=1
 		return 1
 	fi
+	#echo $(wc -l <<< $x)
+	#read -r enterkey
+	while [ "$(wc -l <<< $x)" != "1" ]
+		do
+			x=$(sed 1d <<< $x)
+		done
+	if [ "$mode" == "auto" ]; then
+	while :
+		do
+	echo -n "++ Inject Hook Into $(echo $x | sed 's/.*\///')? (Y/n): "
+	read -r opt
+	opt=$(tr '[:upper:]' '[:lower:]' <<< $opt)	
+	case $opt in 		
+		n) mode="manual";manual_hook; return;;
+		y) break;;
+		*) echo "I Don't Think That's A Valid Option";;
+esac
+done
+fi
+	
 	read -r x <<<$x
 	if [ "$x" != "" ]; then
 	msg="Injecting Hook Into Smali File"
@@ -138,6 +167,15 @@ else echo "> Could Not Find Smali File To Inject Hook, See $logfile For Details"
 	cleanup
 	exit 1
         fi
+}
+
+manual_hook(){
+	cat smalifiles
+	echo -n "Choose Smali File To Inject Hook In ==> "
+	read -r opt
+	x=$(grep -w $opt smalifiles | sed 's/.*[[:space:]]//' | sed 's/\..*//')	
+	x=$(browse_smali original $x)
+	embed "manual"
 }
 
 sign(){
