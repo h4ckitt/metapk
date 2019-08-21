@@ -7,11 +7,12 @@ Clone The Repository To Your Machine
 In Case You Don't Know How To Do That, Here's The Command,
 
 ```
-git clone 
+git clone
 ```
 
 ### Dependencies
-*	A Pc With Bash Shell ( Most Suitably Linux)
+*	A Pc With Bash Shell (Most Suitably Linux)
+*	[Bat](https://github.com/sharkdp/bat)
 *	A Chunk Of Processing Power From Your Brain
 
 ## Usage
