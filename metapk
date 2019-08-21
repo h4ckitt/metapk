@@ -32,12 +32,13 @@ manifest(){
         rm manifest
 	embed
 	sign
-	if [ "$?" != "0" ]; then
+	xcode=$?
+	if [ "$xcode" != "0" ]; then
 		if [ "$hok" == "1" ]; then
 		embed hook
 		sign
 	fi
-	if [ "$?" != "0" ]; then
+	if [ "$xcode" != "0" ]; then
 		if ! [ -z "$(grep -w v15 $logfile)" ]; then
 		embed fallback
 		sign
@@ -170,7 +171,7 @@ else echo "> Could Not Find Smali File To Inject Hook, See $logfile For Details"
 }
 
 manual_hook(){
-	cat smalifiles
+	bat smalifiles
 	echo -n "Choose Smali File To Inject Hook In ==> "
 	read -r opt
 	x=$(grep -w $opt smalifiles | sed 's/.*[[:space:]]//' | sed 's/\..*//')	
