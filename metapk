@@ -1,4 +1,9 @@
 #!/bin/bash
+RED='\033[1;31m'
+[ $(which bat) != "" ] || {
+	echo -e "${RED} Error: Bat Is Required To Run This Software"
+	exit 1
+}
 excode=0
 declare -i counter=1
 mode="auto"
@@ -35,11 +40,13 @@ manifest(){
 	xcode=$?
 	if [ "$xcode" != "0" ]; then
 		if [ "$hok" == "1" ]; then
+			excode=0
 		embed hook
 		sign
 	fi
 	if [ "$xcode" != "0" ]; then
 		if ! [ -z "$(grep -w v15 $logfile)" ]; then
+			excode=0
 		embed fallback
 		sign
 	fi
