@@ -7,7 +7,7 @@ Clone The Repository To Your Machine
 In Case You Don't Know How To Do That, Here's The Command,
 
 ```
-git clone
+git clone https://github.com/yoruba-codigy/metapk.git
 ```
 
 ### Dependencies
