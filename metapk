@@ -1,6 +1,6 @@
 #!/bin/bash
 RED='\033[1;31m'
-[ $(which bat) != "" ] || {
+[ "$(which bat)" != "" ] || {
 	echo -e "${RED} Error: Bat Is Required To Run This Software"
 	exit 1
 }
