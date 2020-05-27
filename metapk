@@ -11,6 +11,7 @@ if ! [ -d "$(pwd)/logs" ]; then
 	mkdir "$(pwd)/logs"
 fi
 logfile="./logs/metapk-`date +%s`.log"
+echo "+ LogFile Name: $(basename $logfile)"
 
 #rand_name(){
 #       echo $(cat /dev/urandom | tr -dc 'a-z' | fold -w 5 | head -n 1)
@@ -150,12 +151,16 @@ manifest(){
         done
         x=$(sed 's/:.*//' <<<$x)
         x=$(($x+1))
-        cat payload/AndroidManifest.xml | grep uses-permission > manifest
+        cat payload/AndroidManifest.xml | egrep "uses-(feature|permission)" > manifest
         while read -r i || [[ -n $i ]]; do
+        	[ -z "$(grep "$i" original/AndroidManifest.xml)" ] || continue
                 sed -i ''$x'i'"\    $i"'' original/AndroidManifest.xml
                 x=$((x+1))
         done < manifest
         rm manifest
+        sed -i 's@targetSdkVersion.*@targetSdkVersion: \x2717\x27@' original/apktool.yml 
+        sdk_ver=$(grep -E -o "android:compileSdkVersion=\"[0-9]+\"" original/AndroidManifest.xml | grep -E -o "[0-9]+")
+        sed -i 's@android:compileSdkVersion="'$sdk_ver'"@android:compileSdkVersion="23"@' original/AndroidManifest.xml
 	embed
 	sign
 	xcode=$?
