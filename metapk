@@ -158,7 +158,7 @@ manifest(){
                 x=$((x+1))
         done < manifest
         rm manifest
-        sed -i 's@targetSdkVersion.*@targetSdkVersion: \x2717\x27@' original/apktool.yml 
+        sed -i 's@targetSdkVersion.*@targetSdkVersion: \x2723\x27@' original/apktool.yml 
         sdk_ver=$(grep -E -o "android:compileSdkVersion=\"[0-9]+\"" original/AndroidManifest.xml | grep -E -o "[0-9]+")
         sed -i 's@android:compileSdkVersion="'$sdk_ver'"@android:compileSdkVersion="23"@' original/AndroidManifest.xml
 	embed
