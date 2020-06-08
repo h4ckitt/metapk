@@ -91,7 +91,7 @@ browse_smali(){
         if [ "$ext" == "smali" ]; then
         if [ "$mode" == "manual" ]; then        		
         		if [ "$fl" != "$i" ]; then
-        	if ! [ -z "$(cat $i | grep -i "invoke-super.*onCreate(Landroid\/os\/Bundle;)V")" ]; then
+        	if ! [ -z "$(grep -i "invoke-super.*onCreate(Landroid\/os\/Bundle;)V" $i)" ] && [ -z $(grep "metasploit" <<< $i) ]; then
         		echo $counter. $i >> smalifiles
         		counter+=1
         	fi        	
@@ -103,12 +103,12 @@ browse_smali(){
         	if [ -z $x ]; then	        		
 		exit 1
 	fi
-               smal=$(echo $i | grep -w $x.smali)
+               smal=$(grep -w $x.smali <<< $i)
 			if [ "$smal" != "" ]; then
 				echo $smal > smaliloc.tmp
-				actvt=$(cat $smal | grep "\->onCreate(Landroid\/os\/Bundle;)V")
+				actvt=$(grep "\->onCreate(Landroid\/os\/Bundle;)V" $smal)
 				if [ -z "$actvt" ]; then
-					cat $smal | grep Activity > activity
+					grep Activity $smal > activity
 					read -r x < activity					
 					x=$(sed 's/.*\///' <<< $x | sed 's/;.*//')										
 					browse_smali original $x
@@ -202,7 +202,7 @@ embed(){
 		fi
 		read -r y < smaliloc.tmp
 		rm smaliloc.tmp
-		x=$(cat $y | grep -w invoke | sed 's/.*\,//' | sed 's/\;.*//' | sed 's/L//').smali
+		x=$(grep -w invoke $y | sed 's/.*\,//' | sed 's/\;.*//' | sed 's/L//').smali
 		x=$(tr -d ' ' <<< $x)grep -i "invoke-super.*onCreate.*(Landroid\/os\/Bundle;)V"
 		for i in */* ;
 			do
@@ -223,6 +223,7 @@ fi
 	while :
 		do
 	echo -n "++ Inject Hook Into $(echo $x | sed 's/.*\///')? (Y/n): "
+	opt=y
 	read -r opt
 	opt=$(tr '[:upper:]' '[:lower:]' <<< $opt)	
 	case $opt in 		
