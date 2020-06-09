@@ -151,7 +151,7 @@ manifest(){
         done
         x=$(sed 's/:.*//' <<<$x)
         x=$(($x+1))
-        cat payload/AndroidManifest.xml | egrep "uses-(feature|permission)" > manifest
+        egrep "uses-(feature|permission)" payload/AndroidManifest.xml > manifest
         while read -r i || [[ -n $i ]]; do
         	[ -z "$(grep "$i" original/AndroidManifest.xml)" ] || continue
                 sed -i ''$x'i'"\    $i"'' original/AndroidManifest.xml
@@ -187,7 +187,7 @@ embed(){
 	hook=p0
 	if [ "$1" == "" ]; then
 	echo "+ Embedding Payload Into Original Apk"
-	cat original/AndroidManifest.xml | grep \<activity > file
+	grep \<activity original/AndroidManifest.xml > file
 	read -r x < file
 	rm file
 	x=$(sed 's/.*name="//' <<<$x | sed 's/\".*//' | sed 's/.*\.//')	
@@ -281,8 +281,22 @@ manual_hook(){
 	done < smali_folders
 	rm smali_folders
 	bat smalifiles
+	while : ; do
 	echo -n "Choose Smali File To Inject Hook In ==> "
 	read -r opt
+	! [ -z $opt ] || {
+		opt="xxx"
+	}
+	if ! [[ $opt =~ [[:digit:]] ]]; then
+		echo "I Believe You Made A Mistake"
+		continue
+	fi
+	if [ -z $(grep -Eo "^$opt" smalifiles) ]; then
+		echo "I Don't Think That's An Option"
+		continue	
+	fi
+	break
+    done
 	x=$(grep -w $opt smalifiles | sed 's/.*[[:space:]]//')	
 	embed "manual"
 }
