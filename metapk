@@ -223,8 +223,8 @@ fi
 	while :
 		do
 	echo -n "++ Inject Hook Into $(echo $x | sed 's/.*\///')? (Y/n): "
-	opt=y
 	read -r opt
+	! [ -z $opt ] || opt=y
 	opt=$(tr '[:upper:]' '[:lower:]' <<< $opt)	
 	case $opt in 		
 		n) mode="manual";manual_hook; return;;
